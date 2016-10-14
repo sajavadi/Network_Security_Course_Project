@@ -1,0 +1,183 @@
+Name: Seyyed Ahmad Javadi
+
+The program includes two main functions:
+    (1) clientProxy: this function is run as a pbproxy_c. It creates one thread that is responsible to
+        receives packets from pbproxy_s and decrypt them and write in the stdout! The function itself,
+        in a while(1) loop, reads data from stdin and sends it to the pbproxy_s! The thread runs the following
+        function: receiveFromServerWrite2Stdout!
+    (2) serverProxy: this function is run as pbproxy_s. It creates a new thread for every incoming connection. 
+        The function run for each new thread is connectionHandler. This function creates another thread that
+        runs the function receiveFromClientSend2Server. This function is responsible for receiving packets
+        from pbproxy_c and sending it to sshd! connectionHandler also in a while(1) loops relay the responses
+        of sshd to pbproxy_c!
+We use two Initial Vectors in our encryption processes (per connection)! One is created and sent by clientProxy
+and is received by receiveFromClientSend2Server. This IV is used to encrypt the traffic from pbproxy_c to 
+pbproxy_s! Another IV is created and sent by connectionHandler and received by receiveFromServerWrite2Stdout.
+This IV is used in the encryption of traffic from pbproxy_s to pbproxy_s!
+
+We tried to cover all possible errors and do the needed actions (Here we simply return)!
+We also write error message in the client side to a file!
+The log file is created in /tmp and the file name is pbproxy.log! 
+
+We also wrote a very simple program that get  a file name as input and creates a random 128 bit
+data and write in the file! We can use this file as key file!! 
+
+More detailed comments are provided in the program through comments! 
+
+
+Here is the sample execution of the program! As you can see, the threads that are created for each
+new connection are closed appropriately! Notice that we need to copy the program executable into bin
+directory. 
+
+
+Server:
+
+sh-3.2# cp pbproxy /usr/bin/
+sh-3.2# ./pbproxy -k /keys/keyfile -l 3333 localhost 22
+new connection 
+new connection 
+new connection 
+sshd ---> pbproxy_s thread is finished
+pbproxy_s ---> sshd thread is finished
+pbproxy_s ---> sshd thread is finished
+sshd ---> pbproxy_s thread is finished
+pbproxy_s ---> sshd thread is finished
+sshd ---> pbproxy_s thread is finished
+
+
+Client 1:
+
+sh-3.2# ssh -o "ProxyCommand pbproxy -k /keys/keyfile 127.0.0.1  3333" Ahmad-PC@localhost
+Password:
+Last login: Fri Apr  3 19:44:07 2015 from localhost
+Seyyeds-MacBook-Pro:~ Ahmad-PC$ ls
+Applications		Downloads		Movies			Pictures		Sites			Windows-8.1.vdi
+Desktop			Google Drive		Music			Public			VirtualBox VMs		dump1
+Documents		Library			My Games		Rabbit.pdf		WarThunderLauncherLogs	tmp
+Seyyeds-MacBook-Pro:~ Ahmad-PC$ exit
+logout
+Connection to localhost closed.
+sh-3.2# 
+
+
+
+Client 2:
+
+Seyyeds-MacBook-Pro:project3 Ahmad-PC$ ssh -o "ProxyCommand pbproxy -k /keys/keyfile localhost 3333" localhost
+Password:
+Last login: Fri Apr  3 20:48:28 2015 from localhost
+Seyyeds-MacBook-Pro:~ Ahmad-PC$ 
+Seyyeds-MacBook-Pro:~ Ahmad-PC$ 
+Seyyeds-MacBook-Pro:~ Ahmad-PC$ ls
+Applications		Downloads		Movies			Pictures		Sites			Windows-8.1.vdi
+Desktop			Google Drive		Music			Public			VirtualBox VMs		dump1
+Documents		Library			My Games		Rabbit.pdf		WarThunderLauncherLogs	tmp
+Seyyeds-MacBook-Pro:~ Ahmad-PC$ exit
+logout
+Connection to localhost closed.
+Seyyeds-MacBook-Pro:project3 Ahmad-PC$ 
+
+
+Client 3:
+
+Seyyeds-MacBook-Pro:project3 Ahmad-PC$ ssh -o "ProxyCommand pbproxy -k /keys/keyfile localhost 3333" localhost
+Password:
+Last login: Fri Apr  3 20:48:45 2015 from localhost
+Seyyeds-MacBook-Pro:~ Ahmad-PC$ 
+Seyyeds-MacBook-Pro:~ Ahmad-PC$ 
+Seyyeds-MacBook-Pro:~ Ahmad-PC$ ls
+Applications		Downloads		Movies			Pictures		Sites			Windows-8.1.vdi
+Desktop			Google Drive		Music			Public			VirtualBox VMs		dump1
+Documents		Library			My Games		Rabbit.pdf		WarThunderLauncherLogs	tmp
+Seyyeds-MacBook-Pro:~ Ahmad-PC$ exit
+logout
+Connection to localhost closed.
+Seyyeds-MacBook-Pro:project3 Ahmad-PC$ 
+
+
+
+
+
+Here the sample execution of the program in Ubuntu:
+
+Server:
+
+root@ahmad-VirtualBox:/home/ahmad/Downloads/SAJavadi-NetSecHW3# make
+g++ pbproxy.cpp -lpthread -lm -lcrypto -lssl -Wno-error=deprecated-declarations   -o pbproxy
+g++ KeyGenerator.cpp -lm -lcrypto -lssl -Wno-error=deprecated-declarations   -o KeyGenerator
+root@ahmad-VirtualBox:/home/ahmad/Downloads/SAJavadi-NetSecHW3# cp pbproxy /usr/bin/root@ahmad-VirtualBox:/home/ahmad/Downloads/SAJavadi-NetSecHW3# ./pbproxy -l 2222 -k /keyfile localhost 22
+new connection 
+Server: The client connection is closed
+pbproxy_s ---> sshd thread is finished
+Server: pbproxy_s to sshd is closed
+sshd ---> pbproxy_s thread is finished
+new connection 
+Server: The client connection is closed
+pbproxy_s ---> sshd thread is finished
+Server: pbproxy_s to sshd is closed
+sshd ---> pbproxy_s thread is finished
+
+
+Client:
+
+
+ahmad@ahmad-VirtualBox:~/Downloads/SAJavadi-NetSecHW3$ ssh -o "ProxyCommand pbproxy -k /keyfile localhost 2222" localhost 
+ahmad@localhost's password: 
+Welcome to Ubuntu 14.04.2 LTS (GNU/Linux 3.13.0-46-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com/
+
+Last login: Fri Apr  3 22:30:39 2015 from localhost
+ahmad@ahmad-VirtualBox:~$ 
+ahmad@ahmad-VirtualBox:~$ 
+ahmad@ahmad-VirtualBox:~$ ls
+Desktop    Downloads         Music   NetSecHW2       Pictures  Templates
+Documents  examples.desktop  NetSec  NetWorkProject  Public    Videos
+ahmad@ahmad-VirtualBox:~$ exit
+logout
+Connection to localhost closed.
+ahmad@ahmad-VirtualBox:~/Downloads/SAJavadi-NetSecHW3$ ssh -o "ProxyCommand pbproxy -k /keyfile localhost 2222" localhost 
+ahmad@localhost's password: 
+Welcome to Ubuntu 14.04.2 LTS (GNU/Linux 3.13.0-46-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com/
+
+Last login: Fri Apr  3 22:38:03 2015 from localhost
+ahmad@ahmad-VirtualBox:~$ exit
+logout
+Connection to localhost closed.
+ahmad@ahmad-VirtualBox:~/Downloads/SAJavadi-NetSecHW3$ 
+
+
+
+Finally, result of experiment for connecting from the VM to the local machine using the pbproxy:
+
+Server:
+
+sh-3.2# cp pbproxy /usr/bin/
+sh-3.2# ./pbproxy -k /keys/keyfile -l 3333 localhost 22
+new connection 
+Server: The client connection is closed
+Server: Error in receiving data from ssh server
+sshd ---> pbproxy_s thread is finished
+pbproxy_s ---> sshd thread is finished
+
+
+Client (Ubuntu VM):
+
+ahmad@ahmad-VirtualBox:~$ ssh -o "ProxyCommand pbproxy -k /keyfile 172.24.236.103 3333" Ahmad-PC@172.24.236.103 
+Password:
+Password:
+Last login: Fri Apr  3 22:51:07 2015 from localhost
+Seyyeds-MacBook-Pro:~ Ahmad-PC$ ls
+Applications        Movies            Sites
+Desktop            Music            VirtualBox VMs
+Documents        My Games        WarThunderLauncherLogs
+Downloads        Pictures        Windows-8.1.vdi
+Google Drive        Public            dump1
+Library            Rabbit.pdf        tmp
+Seyyeds-MacBook-Pro:~ Ahmad-PC$ exit
+logout
+Connection to 172.24.236.103 closed.
+ahmad@ahmad-VirtualBox:~$
+
